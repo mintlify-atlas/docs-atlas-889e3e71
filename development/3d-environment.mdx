@@ -1,0 +1,310 @@
+---
+title: "3D Underwater Environment"
+description: "How the Three.js background scene is built and integrated."
+---
+
+The `UnderwaterEnvironment` component provides the animated 3D background that appears on both the Landing and Detail pages. It renders floating polygon shards, bioluminescent particles, and a surface-light glow effect — all using Framer Motion animations layered as absolute-positioned `div` elements, rather than a Three.js `<Canvas>`.
+
+<Note>
+  Despite the component name and the presence of `@react-three/fiber` and `@react-three/drei` in `package.json`, the current `UnderwaterEnvironment.jsx` implementation is built entirely with Framer Motion `motion.div` elements and CSS, not a Three.js `<Canvas>`. The Three.js packages are available for future enhancement.
+</Note>
+
+## Component Overview
+
+`src/components/UnderwaterEnvironment.jsx` exports five named components and one default export:
+
+| Export | Type | Description |
+|--------|------|-------------|
+| `default UnderwaterEnvironment` | Component | Composes `BackgroundShards`, `VibrantParticles`, and `SurfaceGlow` |
+| `BackgroundShards` | Named export | Floating low-poly triangular shards that rise from bottom to top |
+| `VibrantParticles` | Named export | Bioluminescent plankton-style glowing dots |
+| `SurfaceGlow` | Named export | Radial gradient simulating sunlight piercing from above |
+| `ShardExplosion` | Named export | Burst of triangular shards spawned at click coordinates |
+| `ModalDecorations` | Named export | Floating shards and corner brackets for the Detail modal |
+
+## Default Export: `UnderwaterEnvironment`
+
+```jsx
+const UnderwaterEnvironment = () => {
+  return (
+    <>
+      <BackgroundShards />
+      <VibrantParticles />
+      <SurfaceGlow />
+    </>
+  );
+};
+
+export default UnderwaterEnvironment;
+```
+
+This is the component mounted in both Landing and DetailPage:
+
+```jsx
+// Landing.jsx
+<div className="landing-bg">
+  <UnderwaterEnvironment />
+  <MarineSnow />
+</div>
+
+// DetailPage.jsx
+<div className="explore-bg">
+  <UnderwaterEnvironment />
+</div>
+```
+
+The `.landing-bg` container is `position: fixed` so the 3D environment stays in place as the user scrolls through the landing page content.
+
+## `BackgroundShards`
+
+Renders 20 floating triangular shapes that rise continuously from the bottom of the viewport to the top, rotating as they go:
+
+```jsx
+export const BackgroundShards = () => {
+  const shards = useMemo(() => {
+    const colors = ["#ffffff", "#7dd3fc", "#38bdf8", "#0ea5e9", "#2dd4bf"];
+    return [...Array(20)].map((_, i) => ({
+      id: i,
+      size: Math.random() * 30 + 15,
+      left: `${Math.random() * 100}%`,
+      delay: Math.random() * 10,
+      duration: Math.random() * 15 + 10,
+      opacity: Math.random() * 0.15 + 0.05,
+      rotate: Math.random() * 360,
+      color: colors[Math.floor(Math.random() * colors.length)],
+      offset: Math.random() * 40 - 20,
+    }));
+  }, []);
+
+  return (
+    <div className="background-shards-layer">
+      {shards.map((s) => (
+        <motion.div
+          key={s.id}
+          className="bg-shard"
+          animate={{
+            y: ["110vh", "-10vh"],
+            rotate: [s.rotate, s.rotate + 360],
+            x: [0, s.offset, 0],
+          }}
+          transition={{
+            duration: s.duration,
+            delay: s.delay,
+            repeat: Infinity,
+            ease: "linear",
+          }}
+        />
+      ))}
+    </div>
+  );
+};
+```
+
+**Key details:**
+- Shard geometry comes from CSS: `.bg-shard` has `clip-path: polygon(50% 0%, 0% 100%, 100% 100%)` — an upward-pointing triangle.
+- `useMemo` generates the random configuration once on mount so shards don't get new positions on every render.
+- Opacity ranges from 0.05 to 0.20, keeping the effect subtle.
+- The horizontal `x` keyframe (`[0, s.offset, 0]`) creates a gentle drift side-to-side as each shard rises.
+
+## `VibrantParticles`
+
+Renders 30 small glowing dots (bioluminescent plankton) that pulse in place and drift slightly:
+
+```jsx
+export const VibrantParticles = () => {
+  const particles = useMemo(() => {
+    return [...Array(30)].map((_, i) => ({
+      id: i,
+      x: `${Math.random() * 100}%`,
+      y: `${Math.random() * 100}%`,
+      size: Math.random() * 4 + 2,
+      delay: Math.random() * 5,
+      duration: Math.random() * 5 + 5,
+      offsetX: Math.random() * 30 - 15,
+      offsetY: Math.random() * 30 - 15,
+    }));
+  }, []);
+
+  return (
+    <div className="vibrant-particles-layer">
+      {particles.map((p) => (
+        <motion.div
+          key={p.id}
+          className="bio-particle"
+          animate={{
+            opacity: [0.2, 0.8, 0.2],
+            scale: [1, 1.5, 1],
+            x: [0, p.offsetX],
+            y: [0, p.offsetY],
+          }}
+          transition={{
+            duration: p.duration,
+            delay: p.delay,
+            repeat: Infinity,
+            ease: "easeInOut",
+          }}
+        />
+      ))}
+    </div>
+  );
+};
+```
+
+**Key details:**
+- `.bio-particle` is a `border-radius: 50%` circle with a white glow: `box-shadow: 0 0 10px #ffffff, 0 0 20px #7dd3fc`.
+- The opacity pulse `[0.2, 0.8, 0.2]` simulates the natural bioluminescence flicker of plankton.
+- Particles are `position: absolute` at random fixed positions; they drift slightly rather than travelling across the screen.
+
+## `SurfaceGlow`
+
+A static radial gradient that simulates sunlight penetrating from the ocean surface:
+
+```jsx
+export const SurfaceGlow = () => <div className="surface-glow" />;
+```
+
+```css
+.surface-glow {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 40vh;
+  background: radial-gradient(
+    circle at 50% -20%,
+    rgba(255, 255, 255, 0.4) 0%,
+    rgba(56, 189, 248, 0.2) 40%,
+    transparent 70%
+  );
+  pointer-events: none;
+  z-index: 2;
+}
+```
+
+The gradient origin is above the top edge (`50% -20%`) so only the bottom of the glow is visible, creating the illusion of light descending from above the waterline.
+
+## `ShardExplosion`
+
+Spawned at click coordinates when the user selects a topic tab on the Detail page. It creates a burst of 10 triangular shards that fly outward and fade:
+
+```jsx
+export const ShardExplosion = ({ x, y, onComplete }) => {
+  const shards = useMemo(() => {
+    const colors = ["#ffffff", "#7dd3fc", "#38bdf8", "#2dd4bf"];
+    return [...Array(10)].map((_, i) => ({
+      id: i,
+      angle: (i / 10) * Math.PI * 2 + Math.random() * 0.5,
+      speed: Math.random() * 120 + 60,
+      size: Math.random() * 14 + 8,
+      color: colors[Math.floor(Math.random() * colors.length)],
+      rotation: Math.random() * 360,
+    }));
+  }, []);
+
+  return (
+    <div className="shard-explosion-container" style={{ left: x, top: y }}>
+      {shards.map((s, i) => (
+        <motion.div
+          key={s.id}
+          className="click-shard"
+          initial={{ x: 0, y: 0, opacity: 1, rotate: s.rotation, scale: 1 }}
+          animate={{
+            x: Math.cos(s.angle) * s.speed,
+            y: Math.sin(s.angle) * s.speed,
+            opacity: 0,
+            rotate: s.rotation + 360,
+            scale: 0.2,
+          }}
+          onAnimationComplete={i === 0 ? onComplete : undefined}
+          transition={{ duration: 0.6, ease: "easeOut" }}
+        />
+      ))}
+    </div>
+  );
+};
+```
+
+The `onComplete` callback is fired when the first shard finishes animating, which removes the explosion from the parent's state array:
+
+```jsx
+// DetailPage.jsx
+{explosions.map((exp) => (
+  <ShardExplosion
+    key={exp.id}
+    x={exp.x}
+    y={exp.y}
+    onComplete={() => removeExplosion(exp.id)}
+  />
+))}
+```
+
+Shard angles are evenly distributed around a full circle (`i / 10 * Math.PI * 2`) with a small random offset, so the burst is roughly uniform.
+
+## `ModalDecorations`
+
+Adds decorative corner brackets and floating ambient shards inside the Detail page modal:
+
+```jsx
+export const ModalDecorations = () => {
+  return (
+    <div className="modal-decor-layer">
+      {/* Corner Brackets */}
+      <div className="modal-corner top-left" />
+      <div className="modal-corner top-right" />
+      <div className="modal-corner bottom-left" />
+      <div className="modal-corner bottom-right" />
+
+      {/* Floating shards */}
+      {[...Array(10)].map((_, i) => (
+        <motion.div
+          key={i}
+          className="modal-shard"
+          animate={{
+            y: [0, -30, 0],
+            rotate: [0, 15, 0],
+            opacity: [0.15, 0.4, 0.15],
+          }}
+          transition={{
+            duration: 6 + i,
+            repeat: Infinity,
+            ease: "easeInOut",
+            delay: i * 0.4,
+          }}
+          style={{
+            top: `${15 + ((i * 12) % 70)}%`,
+            left: i % 2 === 0 ? `${2 + (i % 3) * 5}%` : `${85 + (i % 3) * 3}%`,
+            width: 50 + (i % 5) * 15,
+            height: 50 + (i % 5) * 15,
+          }}
+        />
+      ))}
+    </div>
+  );
+};
+```
+
+The 10 floating shards are positioned along the left and right edges of the modal, alternating sides based on even/odd index. Each has a unique duration (`6 + i` seconds) and delay (`i * 0.4s`) so they never move in unison.
+
+## Performance Considerations
+
+<Accordion title="Why use Framer Motion divs instead of Three.js?">
+  Framer Motion `motion.div` animations run on the browser's compositor thread (via CSS transforms and opacity changes), which avoids layout recalculation and keeps the main thread free. For 20–30 simple shapes, this is more efficient than initialising a full WebGL context and managing a Three.js render loop.
+
+  Three.js (`@react-three/fiber`) is included in the project's dependencies for potential future features, such as more complex underwater geometry, water surface simulation, or WebGL post-processing effects.
+</Accordion>
+
+<Accordion title="Avoiding re-renders with useMemo">
+  All particle and shard configuration arrays are wrapped in `useMemo` with an empty dependency array:
+
+  ```jsx
+  const shards = useMemo(() => {
+    return [...Array(20)].map((_, i) => ({ /* random config */ }));
+  }, []);
+  ```
+
+  This ensures the random positions and timings are generated once on mount and never change, preventing the particles from jumping to new positions on re-render.
+</Accordion>
+
+<Accordion title="Fixed positioning of the background container">
+  The `.landing-bg` container uses `position: fixed` so the 3D environment stays stationary while the page content scrolls above it. This is cheaper than `position: absolute` on a very tall page, because the browser clips the fixed element to the viewport and doesn't need to composite it across the full scroll height.
+</Accordion>

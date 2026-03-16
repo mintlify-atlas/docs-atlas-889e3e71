@@ -1,80 +1,105 @@
 ---
-title: "Quickstart"
-description: "Start building awesome documentation in minutes"
+title: 'Quick start'
+description: 'Get Polygon Animals running locally in under five minutes.'
+keywords: ['setup', 'install', 'vite', 'react', 'local development']
 ---
 
-## Get started in three steps
+Polygon Animals is a React + Vite application. You need Node.js and Git installed before you begin.
 
-Get your documentation site running locally and make your first customization.
+## Prerequisites
 
-### Step 1: Set up your local environment
+| Requirement | Version |
+|-------------|----------|
+| Node.js | 18 or later |
+| npm | 9 or later (bundled with Node.js) |
+| Git | any recent version |
 
-<AccordionGroup>
-  <Accordion icon="copy" title="Clone your docs locally">
-    During the onboarding process, you created a GitHub repository with your docs content if you didn't already have one. You can find a link to this repository in your [dashboard](https://dashboard.mintlify.com).
-    
-    To clone the repository locally so that you can make and preview changes to your docs, follow the [Cloning a repository](https://docs.github.com/en/repositories/creating-and-managing-repositories/cloning-a-repository) guide in the GitHub docs.
-  </Accordion>
-  <Accordion icon="rectangle-terminal" title="Start the preview server">
-    1. Install the Mintlify CLI: `npm i -g mint`
-    2. Navigate to your docs directory and run: `mint dev`
-    3. Open `http://localhost:3000` to see your docs live!
-    
-    <Tip>Your preview updates automatically as you edit files.</Tip>
-  </Accordion>
-</AccordionGroup>
+<Tip>
+Run `node -v` and `npm -v` in your terminal to confirm your versions before continuing.
+</Tip>
 
-### Step 2: Deploy your changes
+## Setup
 
-<AccordionGroup>
-  <Accordion icon="github" title="Install our GitHub app">
-    Install the Mintlify GitHub app from your [dashboard](https://dashboard.mintlify.com/settings/organization/github-app).
-    
-    Our GitHub app automatically deploys your changes to your docs site, so you don't need to manage deployments yourself.
-</Accordion>
-<Accordion icon="palette" title="Update your site name and colors">
-    For a first change, let's update the name and colors of your docs site.
+<Steps>
+  <Step title="Clone the repository">
+    ```bash
+    git clone <your-repository-url>
+    cd polygon-animals
+    ```
+  </Step>
 
-    1. Open `docs.json` in your editor.
-    2. Change the `"name"` field to your project name.
-    3. Update the `"colors"` to match your brand.
-    4. Save and see your changes instantly at `http://localhost:3000`.
+  <Step title="Install dependencies">
+    From the project root, install all required packages:
 
-    <Tip>Try changing the primary color to see an immediate difference!</Tip>
-  </Accordion>
-</AccordionGroup>
+    ```bash
+    npm install
+    ```
 
-### Step 3: Go live
+    This installs the following key packages:
 
-<Accordion icon="rocket" title="Publish your docs">
-  1. Commit and push your changes.
-  2. Your docs will update and be live in moments!
-</Accordion>
+    | Package | Version | Purpose |
+    |---------|---------|----------|
+    | `react` | ^19.2.0 | UI framework |
+    | `react-dom` | ^19.2.0 | DOM rendering |
+    | `react-router-dom` | ^7.12.0 | Client-side routing |
+    | `framer-motion` | ^12.29.0 | Scroll animations and parallax |
+    | `@react-three/fiber` | ^9.5.0 | React renderer for Three.js |
+    | `@react-three/drei` | ^10.7.7 | Three.js helpers and abstractions |
+    | `three` | ^0.182.0 | 3D graphics engine |
+  </Step>
 
-## Next steps
+  <Step title="Start the development server">
+    ```bash
+    npm run dev
+    ```
 
-Now that you have your docs running, explore these key features:
+    Vite starts a local server at `http://localhost:5173` (or the next available port). The terminal output confirms the exact URL.
 
-<CardGroup cols={2}>
+    <Note>
+    The first page you see is `/stages` — the root path `/` immediately redirects there via React Router's `<Navigate>` component.
+    </Note>
+  </Step>
+</Steps>
 
-<Card title="Write Content" icon="pen-to-square" href="/essentials/markdown">
-  Learn MDX syntax and start writing your documentation.
-</Card>
+## Available scripts
 
-<Card title="Customize style" icon="palette" href="/essentials/settings">
-  Make your docs match your brand perfectly.
-</Card>
+| Script | Command | Description |
+|--------|---------|-------------|
+| Dev server | `npm run dev` | Starts Vite dev server with hot module replacement |
+| Production build | `npm run build` | Compiles to `dist/` for deployment |
+| Preview build | `npm run preview` | Serves the production build locally |
+| Lint | `npm run lint` | Runs ESLint across the project |
 
-<Card title="Add code examples" icon="square-code" href="/essentials/code">
-  Include syntax-highlighted code blocks.
-</Card>
+## Route overview
 
-<Card title="API documentation" icon="code" href="/api-reference/introduction">
-  Auto-generate API docs from OpenAPI specs.
-</Card>
+Once the dev server is running, you can navigate to any of these routes directly in the browser:
 
-</CardGroup>
+| Route | Page | Description |
+|-------|------|-------------|
+| `/` | — | Redirects to `/stages` |
+| `/stages` | Stages | Entry point — choose a section to explore |
+| `/landing` | Landing | Scrollable showcase of all 10 animals |
+| `/detail?id=<animalId>` | Detail | Polygon animation and conservation info for one animal |
+| `/polygon` | Polygon | Horizontal parallax storytelling about low-poly art |
+| `/order` | Orderer | Internal tool for assigning shard animation order |
 
-<Note>
-  **Need help?** See our [full documentation](https://mintlify.com/docs) or join our [community](https://mintlify.com/community).
-</Note>
+## What to expect
+
+When you open the app at `/stages`, a two-screen animated intro sequence plays on first visit (`Intro1` → `Intro2`). After completing the intro — or on subsequent visits — you land on the stage selection screen with four vertically split panels.
+
+From there:
+
+- Click **stage 1** (สำรวจท้องทะเล) to enter the scrolling `/landing` page
+- Click **stage 2** (รายละเอียด) to open the detail viewer at `/detail`
+- Click **stage 4** (ทำไมต้อง Polygon) to open the horizontal parallax experience at `/polygon`
+
+<Info>
+Stage 3 (ภัยคุกคาม) does not have a route assigned in the current version of the app.
+</Info>
+
+## Vite dev server notes
+
+- **Hot module replacement (HMR)** — React components and CSS update instantly without a full page reload.
+- **Assets** — Images, audio files, and SVGs in `src/assets/` are served by Vite and imported directly with ES module syntax.
+- **Port** — Vite defaults to `5173`. If that port is in use, it automatically increments to `5174`, and so on.
+- **Build output** — `npm run build` writes a production bundle to `dist/`. The app is a standard SPA; configure your hosting provider to serve `index.html` for all routes.

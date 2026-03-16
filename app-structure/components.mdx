@@ -1,0 +1,302 @@
+---
+title: 'Components'
+description: 'Reference for every reusable component in src/components/.'
+keywords: ['components', 'underwater', 'sound', 'back to top', 'animal card', 'preview stage', 'button']
+---
+
+All shared components live in `src/components/`. Each is a default export consumed by one or more pages.
+
+---
+
+## UnderwaterEnvironment
+
+**File:** `src/components/UnderwaterEnvironment.jsx`  
+**Used in:** `Landing.jsx`, `DetailPage.jsx`
+
+Composites three ambient visual effects into a full-viewport background layer. It exports both a default component and several named sub-components that other files import individually.
+
+### Default export
+
+`UnderwaterEnvironment` renders three sub-components together:
+
+```jsx src/components/UnderwaterEnvironment.jsx
+const UnderwaterEnvironment = () => {
+  return (
+    <>
+      <BackgroundShards />
+      <VibrantParticles />
+      <SurfaceGlow />
+    </>
+  );
+};
+```
+
+### Named exports
+
+<AccordionGroup>
+  <Accordion title="BackgroundShards">
+    Renders 20 randomly sized, randomly coloured polygon shards (crystal bubbles) that float up the viewport in a continuous loop. Colours are sampled from `["#ffffff", "#7dd3fc", "#38bdf8", "#0ea5e9", "#2dd4bf"]`. Each shard has a random `delay`, `duration`, lateral `offset`, and starting `opacity` between 0.05 and 0.2.
+
+    ```jsx src/components/UnderwaterEnvironment.jsx
+    animate={{
+      y: ["110vh", "-10vh"],
+      rotate: [s.rotate, s.rotate + 360],
+      x: [0, s.offset, 0],
+    }}
+    transition={{
+      duration: s.duration,
+      delay: s.delay,
+      repeat: Infinity,
+      ease: "linear",
+    }}
+    ```
+  </Accordion>
+
+  <Accordion title="VibrantParticles">
+    Renders 30 bioluminescent plankton particles. Each particle pulses its `opacity` and `scale` on an infinite loop and drifts a small random distance on both axes.
+
+    ```jsx src/components/UnderwaterEnvironment.jsx
+    animate={{
+      opacity: [0.2, 0.8, 0.2],
+      scale: [1, 1.5, 1],
+      x: [0, p.offsetX],
+      y: [0, p.offsetY],
+    }}
+    ```
+  </Accordion>
+
+  <Accordion title="SurfaceGlow">
+    A single `<div className="surface-glow" />` that renders a CSS-driven sunlight piercing effect at the top of the scene.
+  </Accordion>
+
+  <Accordion title="ShardExplosion">
+    Imported by `DetailPage.jsx` to play a particle burst animation at the cursor position when the user clicks a topic button.
+
+    ```jsx src/components/UnderwaterEnvironment.jsx
+    export const ShardExplosion = ({ x, y, onComplete }) => {
+    ```
+
+    **Props:**
+
+    | Prop | Type | Description |
+    |------|------|-------------|
+    | `x` | `number` | Horizontal position (pixels from left of viewport) |
+    | `y` | `number` | Vertical position (pixels from top of viewport) |
+    | `onComplete` | `() => void` | Called after the animation finishes; used to remove the explosion from state |
+
+    Spawns 10 triangular shards that fly outward on a `0.6 s easeOut` transition, then call `onComplete` via the first shard's `onAnimationComplete`.
+  </Accordion>
+
+  <Accordion title="ModalDecorations">
+    Imported by `DetailPage.jsx` and rendered inside the conservation modal. Adds four corner bracket `div` elements and 10 slowly floating internal shards to give the modal a geometric aesthetic.
+  </Accordion>
+</AccordionGroup>
+
+---
+
+## SoundController
+
+**File:** `src/components/SoundController.jsx`  
+**Used in:** `Landing.jsx`, `DetailPage.jsx`
+
+A floating ambient audio controller. Renders an HTML `<audio>` element and a mute/unmute button with an animated volume slider that appears on hover.
+
+### Props
+
+| Prop | Type | Required | Description |
+|------|------|----------|-------------|
+| `bgSound` | `string` | Yes | URL or imported asset path for the background audio file |
+
+### Behaviour
+
+- Audio starts **muted** (`isMuted: true`) and begins playing automatically on the first user interaction (click, scroll, keydown, etc.).
+- The component registers interaction listeners globally on `window` to work around browser autoplay restrictions:
+
+  ```jsx src/components/SoundController.jsx
+  window.addEventListener("click", startAudio, { capture: true });
+  window.addEventListener("scroll", startAudio, { passive: true });
+  // + mousedown, pointerdown, touchstart, wheel, keydown, pointermove
+  ```
+
+- Hovering the control reveals an animated volume slider (Framer Motion `AnimatePresence`).
+- The component exposes `window.triggerSoundPlay()` so other parts of the app can force-start audio after navigation.
+
+### Usage
+
+```jsx
+import SoundController from "../components/SoundController";
+import bgSound from "../assets/sound/bg-sound.MP3";
+import "../components/SoundController.css";
+
+<SoundController bgSound={bgSound} />
+```
+
+<Note>
+Import `SoundController.css` alongside the component — the CSS is not bundled into the component file itself.
+</Note>
+
+---
+
+## BackToTop
+
+**File:** `src/components/BackToTop.jsx`  
+**Used in:** `Landing.jsx`
+
+A scroll-to-top button that appears only when the user has scrolled to within the last 1% of the page.
+
+### Behaviour
+
+Uses Framer Motion's `useScroll` to watch `scrollYProgress`. The button mounts into the DOM via `AnimatePresence` only when `scrollYProgress > 0.99`:
+
+```jsx src/components/BackToTop.jsx
+return scrollYProgress.on("change", (latest) => {
+  if (latest > 0.99) {
+    setIsVisible(true);
+  } else {
+    setIsVisible(false);
+  }
+});
+```
+
+Clicking the button calls `window.scrollTo({ top: 0, behavior: "smooth" })`.
+
+The button animates in from below (`y: 50 → 0`) and scales up, and reverses on exit. It also has a subtle lift on hover (`y: -5`).
+
+### Usage
+
+```jsx
+import BackToTop from "../components/BackToTop";
+
+// Place anywhere inside the scrollable page
+<BackToTop />
+```
+
+No props — the component reads scroll position from the global document scroll.
+
+---
+
+## AnimalCard
+
+**File:** `src/components/AnimalCard.jsx`
+
+A glassmorphism card that displays an animal's name and shard count. Links to `/detail` on click.
+
+### Props
+
+| Prop | Type | Required | Description |
+|------|------|----------|-------------|
+| `animal` | `object` | Yes | An entry from the `ANIMALS` array (`id`, `name`, `shards`) |
+
+### Behaviour
+
+- Uses local `isHovered` state (not CSS `:hover`) to apply `translateY(-10px)` and an enhanced `box-shadow` on hover.
+- Renders the first character of `animal.name` as a placeholder icon inside a circle.
+- The entire card is wrapped in a `<Link to="/detail">` — the animal ID is not passed as a query param in this component.
+
+```jsx src/components/AnimalCard.jsx
+const AnimalCard = ({ animal }) => {
+  const [isHovered, setIsHovered] = React.useState(false);
+  // ...
+  return (
+    <Link to="/detail" style={{ textDecoration: 'none' }}>
+      <div
+        style={cardStyle}
+        onMouseEnter={() => setIsHovered(true)}
+        onMouseLeave={() => setIsHovered(false)}
+      >
+        <div style={circleStyle}>{animal.name.charAt(0)}</div>
+        <div style={titleStyle}>{animal.name}</div>
+        <div style={infoStyle}>{animal.shards.length} Shards</div>
+      </div>
+    </Link>
+  );
+};
+```
+
+<Info>
+`AnimalCard` links to `/detail` without an `?id=` parameter. If you use this component and need the detail page to open the correct animal, update the `Link` to include `to={\`/detail?id=${animal.id}\``}.
+</Info>
+
+---
+
+## PreviewStage
+
+**File:** `src/components/PreviewStage.jsx`
+
+A lightweight polygon viewer with an auto-reveal animation. Shards become visible two at a time every 20 ms, creating a fast assembly effect when the component mounts.
+
+### Props
+
+| Prop | Type | Default | Description |
+|------|------|---------|-------------|
+| `animal` | `object` | — | An entry from the `ANIMALS` array |
+| `scale` | `number` | `1` | CSS scale transform applied to the outer wrapper |
+| `opacity` | `number` | `1` | CSS opacity applied to the outer wrapper |
+
+### Behaviour
+
+The `visibleShards` count starts at `0` and increments by `2` every `20 ms` via `setInterval` until it reaches `animal.shards.length`. Each shard's `opacity` is `1` if its index is below `visibleShards`, and `0` otherwise.
+
+```jsx src/components/PreviewStage.jsx
+useEffect(() => {
+  setVisibleShards(0);
+  const interval = setInterval(() => {
+    setVisibleShards(prev => {
+      if (prev >= animal.shards.length) {
+        clearInterval(interval);
+        return prev;
+      }
+      return prev + 2; // Speed of reveal
+    });
+  }, 20);
+  return () => clearInterval(interval);
+}, [animal]);
+```
+
+The stage preserves the correct aspect ratio using a padding-bottom trick based on `stageHeight / stageWidth`:
+
+```jsx src/components/PreviewStage.jsx
+<div style={{ position: 'relative', width: '100%', paddingBottom: `${(stageHeight/stageWidth)*100}%` }}>
+```
+
+---
+
+## Button
+
+**File:** `src/components/Button.jsx`  
+**Used in:** `DetailPage.jsx` (indirectly via ghost buttons), `OrdererPage.jsx`
+
+A base glassmorphism button with two visual variants.
+
+### Props
+
+| Prop | Type | Default | Description |
+|------|------|---------|-------------|
+| `children` | `ReactNode` | — | Button label or content |
+| `onClick` | `() => void` | — | Click handler |
+| `variant` | `"primary" \| "secondary"` | `"primary"` | Controls background colour and box shadow |
+| `className` | `string` | `""` | Additional CSS class names |
+| `...props` | any | — | Any other valid `<button>` props |
+
+### Variants
+
+| Variant | Background | Shadow |
+|---------|-----------|--------|
+| `primary` | `rgba(99, 102, 241, 0.2)` | Purple glow (`rgba(99, 102, 241, 0.39)`) |
+| `secondary` | `rgba(255, 255, 255, 0.05)` | Subtle dark shadow |
+
+Hover state is managed in local React state — the button lifts `2 px` and the background becomes more opaque on hover.
+
+### Usage
+
+```jsx
+import Button from "../components/Button";
+
+<Button variant="primary" onClick={handleNext}>
+  Next Animal
+</Button>
+
+<Button variant="secondary" onClick={handleReset}>
+  Reset
+</Button>
+```

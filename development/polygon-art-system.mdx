@@ -1,0 +1,211 @@
+---
+title: "Polygon Art System"
+description: "How low-poly animal art is built from CSS clip-path shards."
+---
+
+Every animal in the project is assembled from a collection of triangular **shards** — absolutely-positioned `<div>` elements clipped into triangles using CSS `clip-path: polygon()`. There is no SVG, canvas, or image involved: the entire illustration is pure CSS geometry.
+
+## How Shards Work
+
+Each shard is a full-size `div` that fills its parent container. The visible triangle is cut out using the `clip-path` CSS property:
+
+```css
+clip-path: polygon(x1% y1%, x2% y2%, x3% y3%);
+```
+
+Coordinates are expressed as **percentages** relative to the parent element's width and height. A coordinate of `0% 0%` is the top-left corner; `100% 100%` is the bottom-right corner.
+
+All shards inside one animal share the same parent, which has a fixed aspect ratio matching the animal's `stageWidth` and `stageHeight`. Because every shard fills `width: 100%; height: 100%` and is `position: absolute; top: 0; left: 0`, their percentage coordinates all reference the same coordinate space.
+
+```jsx
+<div
+  className="shard"
+  style={{
+    clipPath: shard.clipPath,
+    backgroundColor: shard.color,
+    width: "100%",
+    height: "100%",
+    position: "absolute",
+    top: 0,
+    left: 0,
+  }}
+/>
+```
+
+## The Shard Data Structure
+
+Each shard object in `animalConfig.js` has four fields:
+
+```js
+{
+  clipPath: "polygon(7.313% 48.222%, 7.688% 52.444%, 4.742% 54.000%, ...)",
+  color: "#C0CECE",
+  order: 7,
+  shard: 1,
+}
+```
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `clipPath` | `string` | A full CSS `polygon()` value with percentage vertices |
+| `color` | `string` | Hex color for this triangle's `backgroundColor` |
+| `order` | `number` | Controls which shards animate in first on the Detail page |
+| `shard` | `number` | A 1-based human-readable index for identification |
+
+<Note>
+  The `shard` field is for author reference only — the renderer uses the array index, not `shard`. The `order` field is what drives animation sequencing.
+</Note>
+
+## The `stageWidth` / `stageHeight` Coordinate System
+
+Every animal entry defines the canvas dimensions that the shard percentages were authored against:
+
+```js
+{
+  id: "irrawaddyDolphin",
+  name: "IrrawaddyDolphin",
+  stageWidth: 1600,
+  stageHeight: 900,
+  shards: [ /* ... */ ],
+}
+```
+
+The wrapper `div` in the landing page uses `aspect-ratio` to maintain those proportions:
+
+```css
+.irrawaddy-wrapper-v2 {
+  position: relative;
+  width: 100%;
+  aspect-ratio: 1600 / 900;
+}
+```
+
+In `DetailPage.jsx`, the ratio is computed dynamically and passed as a CSS variable so the stage always maintains the correct shape regardless of viewport width:
+
+```jsx
+const stageWidth = animal.stageWidth ?? 1000;
+const stageHeight = animal.stageHeight ?? 1000;
+const ratio = stageWidth / stageHeight;
+
+// ...
+<div className="stage-wrapper" style={{ "--ratio": ratio }}>
+```
+
+This means you can author shard coordinates against any virtual canvas size; percentages will scale correctly to any rendered size.
+
+## The `ANIMALS` Array
+
+`src/data/animalConfig.js` exports a single `ANIMALS` array. Each element is one animal:
+
+```js
+export const ANIMALS = [
+  {
+    id: "irrawaddyDolphin",
+    name: "IrrawaddyDolphin",
+    stageWidth: 1600,
+    stageHeight: 900,
+    shards: [
+      {
+        clipPath: "polygon(7.313% 48.222%, 7.688% 52.444%, 4.742% 54.000%, 7.313% 48.222%, 7.313% 48.222%)",
+        color: "#C0CECE",
+        order: 7,
+        shard: 1,
+      },
+      {
+        clipPath: "polygon(7.875% 68.444%, 4.438% 68.444%, 5.813% 62.111%, 7.875% 68.444%, 7.875% 68.444%)",
+        color: "#798998",
+        order: 2,
+        shard: 2,
+      },
+      // ... many more shards
+    ],
+  },
+  // ... more animals
+];
+```
+
+The `id` field is used throughout the app to look up an animal by URL parameter (`/detail?id=irrawaddyDolphin`) and to match with `animalDetails.json`.
+
+## Rendering Shards in Landing.jsx
+
+On the landing page, shards are rendered by finding the animal in the `ANIMALS` array and mapping over its `shards` array:
+
+```jsx
+{ANIMALS.find((a) => a.id === "irrawaddyDolphin")?.shards.map(
+  (shard, index) => (
+    <div
+      key={index}
+      className="shard"
+      style={{
+        clipPath: shard.clipPath,
+        backgroundColor: shard.color,
+        width: "100%",
+        height: "100%",
+        position: "absolute",
+        top: 0,
+        left: 0,
+      }}
+    />
+  ),
+)}
+```
+
+The wrapper has a fixed `aspect-ratio` so the percentage coordinates resolve correctly. On the landing page, shards are static — the parallax movement is applied to the wrapper, not the individual shards.
+
+## Animation Sequencing with `order` in DetailPage
+
+On the Detail page, shards animate in one by one — flying in from scattered positions and assembling into the animal shape. The `order` field controls which shard arrives first.
+
+The Detail page normalises `order` values into ranks (0 to N−1) so that animation delays are evenly distributed regardless of how sparse or large the `order` values are:
+
+```jsx
+const shardRanks = useMemo(() => {
+  const withIndex = animal.shards.map((shard, index) => ({
+    originalIndex: index,
+    order: typeof shard.order === "number" ? shard.order : index,
+  }));
+  withIndex.sort((a, b) => a.order - b.order);
+
+  const ranks = new Array(withIndex.length);
+  withIndex.forEach((item, rank) => {
+    ranks[item.originalIndex] = rank;
+  });
+  return ranks;
+}, [animal]);
+```
+
+Each shard's CSS `transition` delay is calculated from its rank:
+
+```jsx
+const TARGET_STAGGER_TIME = 1.25; // total assembly time in seconds
+const staggerPerShard = TARGET_STAGGER_TIME / Math.max(1, totalShards);
+const delay = orderIndex * staggerPerShard;
+
+// Applied as inline CSS
+transition: `
+  clip-path ${DURATION}s ${delay}s cubic-bezier(0.25, 0.8, 0.25, 1),
+  opacity 0.4s ${delay}s ease-out,
+  transform ${DURATION}s ${delay}s cubic-bezier(0.25, 0.8, 0.25, 1)
+`
+```
+
+When navigating **forward** through animals (left direction), shards arrive in ascending `order`. When navigating **backward** (right direction), the order reverses, so lower-order shards arrive last:
+
+```jsx
+const orderIndex = direction === "left" ? rank : totalShards - 1 - rank;
+```
+
+## Shimmer Effect
+
+After all shards have assembled, a shimmer animation plays across the completed animal. The Detail page tracks when assembly finishes:
+
+```jsx
+const maxDelay = (totalShards - 1) * staggerPerShard;
+const assemblyDuration = (maxDelay + DURATION) * 1000;
+
+const timer = setTimeout(() => {
+  setShimmerReady(true);
+}, assemblyDuration + 100);
+```
+
+Once `shimmerReady` is `true`, the `.shimmer-ready` class is added to each shard, triggering the shimmer via a CSS keyframe animation. Each shard's shimmer is offset using a `--shimmer-delay` CSS variable batched by groups of shards.

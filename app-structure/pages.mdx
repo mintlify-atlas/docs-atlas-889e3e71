@@ -1,0 +1,302 @@
+---
+title: 'Pages'
+description: 'Documentation for all five pages (routes) in the Polygon Animals app.'
+keywords: ['pages', 'routes', 'react router', 'stages', 'landing', 'detail', 'polygon', 'orderer']
+---
+
+All routes are defined in `src/main.jsx`. The root path redirects to `/stages`:
+
+```jsx src/main.jsx
+<Routes>
+  <Route path="/" element={<Navigate to="/stages" replace />} />
+  <Route path="/detail" element={<DetailPage />} />
+  <Route path="/order" element={<OrdererPage />} />
+  <Route path="/landing" element={<Landing />} />
+  <Route path="/stages" element={<Stages />} />
+  <Route path="/polygon" element={<PolygonPage />} />
+</Routes>
+```
+
+---
+
+## Stages
+
+**Route:** `/stages`  
+**File:** `src/pages/Stages.jsx`
+
+The entry point of the app. Renders four vertically split stage panels that the user can click to navigate to a section. On the very first visit, a two-screen animated intro sequence (`Intro1` → `Intro2`) plays before the panels appear.
+
+### State
+
+| State variable | Type | Description |
+|----------------|------|-------------|
+| `introStep` | `number` | Controls which intro screen is shown (`0` = none, `1` = Intro1, `2` = Intro2) |
+| `activeTab` | `number \| null` | Tracks the hovered stage on desktop for hover expansion |
+| `mobileSelected` | `number \| null` | Tracks the tapped stage on mobile to show a preview overlay |
+| `isMobile` | `boolean` | Whether the viewport is ≤ 768 px wide |
+
+The module-level variable `hasSeenIntroGlobal` persists the "intro already seen" state across React renders without triggering a re-render:
+
+```jsx src/pages/Stages.jsx
+let hasSeenIntroGlobal = false;
+
+const [introStep, setIntroStep] = useState(
+  hasSeenIntroGlobal || skipIntro ? 0 : 1,
+);
+```
+
+The `skipIntro` flag is passed via React Router's `location.state` when navigating back from another page:
+
+```jsx src/pages/Stages.jsx
+const skipIntro = location.state?.skipIntro ?? false;
+```
+
+### Stage data
+
+Each stage panel is driven by the static `stagesData` array defined at the top of the file:
+
+```jsx src/pages/Stages.jsx
+const stagesData = [
+  {
+    id: 1,
+    title: "สำรวจท้องทะเล",
+    subtitle: "ร่วมสำรวจและทำความรู้จักกับเหล่า 10 สัตว์ทะเลหายาก...",
+    bgClass: "bg-research",
+    route: "/landing",
+  },
+  {
+    id: 2,
+    title: "รายละเอียด",
+    subtitle: "เจาะลึกข้อมูลเชิงลึกของแต่ละสายพันธุ์ที่น่าสนใจ",
+    bgClass: "bg-detail",
+    route: "/detail",
+  },
+  // ...
+];
+```
+
+### Key interactions
+
+- **Desktop**: hovering a panel expands it; clicking navigates immediately.
+- **Mobile**: first tap selects a panel and shows a full-screen preview overlay with a CTA button; second tap (or clicking the overlay) navigates.
+
+---
+
+## Landing
+
+**Route:** `/landing`  
+**File:** `src/pages/Landing.jsx`
+
+The main scrolling showcase. As the user scrolls, each of the 10 animals animates into view via Framer Motion parallax transforms. A live depth indicator in the corner tracks scroll progress as meters underwater (0 m → 2000 m).
+
+### Key features
+
+- **`UnderwaterEnvironment`** renders floating polygon shards and bioluminescent particles as a full-viewport background.
+- **`SoundController`** provides an ambient background audio toggle.
+- **`BackToTop`** button appears when the user reaches the very bottom of the page.
+- **`ParallaxElement`** — an internal helper component that wraps Framer Motion's `useScroll` + `useSpring` to animate children as they enter and leave the viewport.
+- **`AnimalInfoBox`** — an internal component that reads from `animalDetails.json` by ID and renders the animal's name and intro text alongside a link to `/detail?id=<animalId>`.
+- **`MarineSnow`** — 30 randomly positioned CSS particles that drift down the page.
+- **`LightRays`** — five CSS light beams in the first section.
+- **`DepthIndicator`** — maps `scrollYProgress` to a 0–2000 m depth value.
+
+### Scroll architecture
+
+Each animal occupies its own `<section>` element. The `ParallaxElement` component wraps each animal's polygon shard container and applies `y`, `x`, `scale`, and `rotate` transforms based on how far the section has scrolled through the viewport:
+
+```jsx src/pages/Landing.jsx
+<ParallaxElement
+  yRange={["40%", "0%", "-10%"]}
+  xRange={["30%", "0%", "10%"]}
+  scaleRange={[0.8, 1, 0.9]}
+  rotateRange={["-10deg", "0deg", "5deg"]}
+  style={{ width: "100%", display: "flex", justifyContent: "center" }}
+>
+  {/* polygon shard divs */}
+</ParallaxElement>
+```
+
+The three-value ranges map to `[0, 0.5, 1]` scroll progress — enter, center, exit.
+
+### Animals displayed (in scroll order)
+
+1. Irrawaddy Dolphin (`irrawaddyDolphin`)
+2. Dolphin (`dolphin`)
+3. Stingray (`stingray`)
+4. Dugong (`dugong`)
+5. Turtle (`turtle`)
+6. Ronin (`ronin`) + Sawfish (`sawfishes`) — shared section
+7. Orca (`orca`)
+8. Sperm Whale (`spermWhale`)
+9. Blue Whale (`blueWhale`)
+
+---
+
+## Detail page
+
+**Route:** `/detail?id=<animalId>`  
+**File:** `src/pages/DetailPage.jsx`
+
+Displays a single animal's polygon artwork assembled from scattered shards with a staggered animation, plus tabbed conservation content in a glass-morphism modal.
+
+### URL parameter
+
+The page reads the `id` query parameter on mount and finds the matching animal in the `ANIMALS` array:
+
+```jsx src/pages/DetailPage.jsx
+useEffect(() => {
+  const animalId = searchParams.get("id");
+  if (animalId) {
+    const index = levels.findIndex(
+      (a) => a.id.toLowerCase() === animalId.toLowerCase(),
+    );
+    if (index !== -1) setCurrentIndex(index);
+  }
+}, [searchParams, levels]);
+```
+
+If no `id` is provided, the page defaults to the first animal in the array.
+
+### Shard animation
+
+Shards start scattered offscreen using a golden-angle distribution, then assemble into the final polygon image. The total assembly time is kept consistent regardless of shard count by computing a dynamic stagger:
+
+```jsx src/pages/DetailPage.jsx
+// [CONFIG] Total assembly time target (seconds)
+const TARGET_STAGGER_TIME = 1.25;
+
+const staggerPerShard = TARGET_STAGGER_TIME / Math.max(1, totalShards);
+```
+
+Navigation arrows cycle through all animals in the `ANIMALS` array.
+
+### Conservation modal
+
+Clicking any topic button at the bottom of the page opens a full-screen glass-morphism modal. The modal's content is driven by the `topics` and `animals[].content` objects from `animalDetails.json`. Topic keys are derived at runtime:
+
+```jsx src/pages/DetailPage.jsx
+const topicKeys = useMemo(() => Object.keys(ANIMAL_DETAILS.topics), []);
+```
+
+Switching tabs fades the content out (300 ms), swaps the `displayedKey`, then fades back in — the button state updates instantly but the displayed text lags by 300 ms.
+
+### State
+
+| State variable | Type | Description |
+|----------------|------|-------------|
+| `currentIndex` | `number` | Index into the `ANIMALS` array |
+| `direction` | `"left" \| "right"` | Direction of the last navigation; controls shard animation order |
+| `showModal` | `boolean` | Whether the conservation modal is open |
+| `activeTabKey` | `string` | Currently active topic key (updates immediately) |
+| `displayedKey` | `string` | Topic key whose content is rendered (updates after 300 ms fade) |
+| `shimmerReady` | `boolean` | Set to `true` after the shard assembly animation finishes |
+| `explosions` | `array` | Active `ShardExplosion` instances triggered on button clicks |
+
+---
+
+## Polygon page
+
+**Route:** `/polygon`  
+**File:** `src/pages/PolygonPage.jsx`
+
+A horizontal parallax storytelling experience. Vertical scroll is converted to horizontal movement across three image layers at different depths, creating a parallax depth effect. An animated orca jumps across the scene, and a polar bear slides in near the end with an explanation of low-poly art.
+
+### Scroll-to-horizontal conversion
+
+The page uses a tall `div` (set by the image content width) to create scroll room, then maps `scrollYProgress` to horizontal `x` translations for each layer:
+
+```jsx src/pages/PolygonPage.jsx
+// Parallax multipliers for depth effect
+// Bottom (Far): moves slowest
+const bgXBottom = useTransform(
+  smoothProgress,
+  [0, 1],
+  [0, -travelDistance * 0.7],
+);
+// Middle: moves slightly faster
+const bgXMiddle = useTransform(
+  smoothProgress,
+  [0, 1],
+  [0, -travelDistance * 0.85],
+);
+// Top (Near): moves at full speed (max travel)
+const bgXTop = useTransform(smoothProgress, [0, 1], [0, -travelDistance]);
+```
+
+`travelDistance` is calculated dynamically once the images load:
+
+```jsx src/pages/PolygonPage.jsx
+const travelDistance = Math.max(0, maxWidth - viewportWidth);
+```
+
+### Scroll spring
+
+A `useSpring` wrapper on `scrollYProgress` adds physical inertia to the horizontal movement:
+
+```jsx src/pages/PolygonPage.jsx
+const smoothProgress = useSpring(scrollYProgress, {
+  stiffness: 60,
+  damping: 35,
+  restDelta: 0.001,
+});
+```
+
+### Animated elements
+
+| Element | Behaviour |
+|---------|----------|
+| Paper ship | Bobs vertically with `Math.sin` and drifts slightly rightward |
+| Orca | Jumps in an arc across the scene at scroll progress 0.3–0.85, rotating to match the arc |
+| Polar bear | Slides in from the right at scroll progress 0.75–0.92, carrying a message about low-poly art |
+| Orca message box | Fades in/out between scroll 0.4–0.82, synced horizontally to the middle layer |
+
+### Audio
+
+The page manages its own audio instance (a rowing sound loop) independently of `SoundController`. Audio starts playing on first scroll interaction and fades to silence 400 ms after scrolling stops:
+
+```jsx src/pages/PolygonPage.jsx
+audioTimeoutRef.current = setTimeout(() => {
+  if (audioRef.current) {
+    audioRef.current.volume = 0;
+  }
+}, 400);
+```
+
+### Mobile scrubber
+
+A range input at the bottom of the page lets touch users scrub through the scene. It stays in sync with scroll position bidirectionally via `useMotionValueEvent`.
+
+---
+
+## Orderer page
+
+**Route:** `/order`  
+**File:** `src/pages/OrdererPage.jsx`
+
+An internal developer tool used to assign animation order values to polygon shards. It is not linked from the main navigation.
+
+### How it works
+
+1. The page renders the selected animal's polygon shards in their raw (un-ordered) positions.
+2. The developer clicks each shard in the desired reveal sequence.
+3. Clicked shards turn red and display their sequence number.
+4. Once every shard has been clicked, the page automatically exports a `.js` file containing the updated `ANIMALS` entry with new `order` values:
+
+```jsx src/pages/OrdererPage.jsx
+let exportContent = `export const ${animal.id}Ordered = {\n`;
+// ...
+exportContent += `      order: ${shard.order},\n`;
+```
+
+### Controls
+
+| Button | Action |
+|--------|--------|
+| Show Numbers / Hide Numbers | Toggles shard index labels; also enables a 2.5× zoom and crosshair cursor |
+| Reset | Clears all marked shards (`markedOrder = []`) |
+| Export | Manually triggers the `.js` file download |
+| Prev / Next Animal | Cycles through all animals, clearing marks on change |
+
+<Info>
+The Orderer page uses the `Button` component with `variant="primary"` and `variant="secondary"` to demonstrate both variants side by side.
+</Info>

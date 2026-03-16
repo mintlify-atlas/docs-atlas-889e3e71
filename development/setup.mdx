@@ -1,0 +1,187 @@
+---
+title: "Development Setup"
+description: "Get the Polygon Animals project running locally."
+---
+
+## System Requirements
+
+Before you begin, make sure you have the following installed:
+
+| Tool | Minimum Version | Notes |
+|------|----------------|-------|
+| Node.js | 18.x or later | LTS recommended |
+| npm | 9.x or later | Ships with Node |
+| Git | Any recent version | For cloning the repo |
+
+## Clone and Install
+
+<Steps>
+  <Step title="Clone the repository">
+    ```bash
+    git clone <repository-url>
+    cd polygon-animals
+    ```
+  </Step>
+
+  <Step title="Install dependencies">
+    ```bash
+    npm install
+    ```
+
+    This installs all production and development dependencies defined in `package.json`.
+  </Step>
+
+  <Step title="Start the development server">
+    ```bash
+    npm run dev
+    ```
+
+    Vite starts a local dev server with Hot Module Replacement (HMR). Open the URL printed in your terminal (typically `http://localhost:5173`).
+  </Step>
+</Steps>
+
+## Available Scripts
+
+All scripts are defined in `package.json`:
+
+| Script | Command | Description |
+|--------|---------|-------------|
+| `dev` | `vite` | Starts the Vite dev server with HMR |
+| `build` | `vite build` | Builds the app for production into `dist/` |
+| `preview` | `vite preview` | Serves the production build locally for verification |
+| `lint` | `eslint .` | Runs ESLint across all `.js` and `.jsx` files |
+
+## Vite Configuration
+
+The project uses a minimal Vite configuration in `vite.config.js`:
+
+```js
+import { defineConfig } from "vite";
+import react from "@vitejs/plugin-react";
+
+export default defineConfig({
+  plugins: [react()],
+  server: {
+    allowedHosts: true,
+    host: true,
+  },
+});
+```
+
+**Key settings:**
+
+- **`plugins: [react()]`** — Enables JSX transform, Fast Refresh, and React-specific Vite optimisations via `@vitejs/plugin-react`.
+- **`host: true`** — Binds the dev server to `0.0.0.0`, making it accessible on your local network (useful for testing on mobile devices).
+- **`allowedHosts: true`** — Allows connections from any hostname, which is helpful when running inside containers or cloud dev environments.
+
+<Note>
+  The `hmr.clientPort` option is commented out in the config. Uncomment and set it to `443` only if you need HMR to work through an HTTPS reverse proxy.
+</Note>
+
+## Dependencies
+
+### Production
+
+| Package | Version | Purpose |
+|---------|---------|----------|
+| `react` | ^19.2.0 | UI library |
+| `react-dom` | ^19.2.0 | DOM renderer |
+| `react-router-dom` | ^7.12.0 | Client-side routing |
+| `framer-motion` | ^12.29.0 | Scroll-linked and enter animations |
+| `three` | ^0.182.0 | 3D rendering engine |
+| `@react-three/fiber` | ^9.5.0 | React renderer for Three.js |
+| `@react-three/drei` | ^10.7.7 | Helpers and abstractions for R3F |
+
+### Development
+
+| Package | Version | Purpose |
+|---------|---------|----------|
+| `vite` | ^7.2.2 | Build tool and dev server |
+| `@vitejs/plugin-react` | ^5.1.0 | React support for Vite |
+| `eslint` | ^9.39.1 | JavaScript linter |
+| `eslint-plugin-react-hooks` | ^7.0.1 | Enforces React Hooks rules |
+| `eslint-plugin-react-refresh` | ^0.4.24 | Guards against HMR edge cases |
+| `globals` | ^16.5.0 | Browser/Node global definitions for ESLint |
+| `@types/react` | ^19.2.2 | TypeScript types for React (used by editors) |
+| `@types/react-dom` | ^19.2.2 | TypeScript types for ReactDOM |
+
+## Project Structure
+
+```
+polygon-animals/
+├── public/                  # Static assets served as-is
+├── src/
+│   ├── assets/              # Images, fonts, audio files
+│   │   ├── fonts/           # Google Sans variable font
+│   │   └── sound/           # Background audio (bg-sound.MP3)
+│   ├── components/          # Shared React components
+│   │   ├── UnderwaterEnvironment.jsx  # Three.js 3D scene
+│   │   ├── SoundController.jsx
+│   │   └── BackToTop.jsx
+│   ├── data/                # Animal data
+│   │   ├── animalConfig.js  # Polygon shard definitions
+│   │   └── animalDetails.json  # Conservation content
+│   ├── images/              # Background images for Stages
+│   ├── pages/               # Route-level page components
+│   │   ├── Landing.jsx / .css   # Scrollable parallax showcase
+│   │   ├── DetailPage.jsx / .css  # Interactive animal detail
+│   │   ├── Stages.jsx / .css    # Entry screen with nav tabs
+│   │   ├── Intro1.jsx / .css    # First intro animation screen
+│   │   ├── Intro2.jsx / .css    # Second intro animation screen
+│   │   ├── OrdererPage.jsx      # Dev ordering tool
+│   │   └── PolygonPage.jsx      # Polygon showcase
+│   ├── index.css            # Global CSS variables and resets
+│   └── main.jsx             # App entry point and router
+├── eslint.config.js
+├── package.json
+└── vite.config.js
+```
+
+## ESLint Setup
+
+ESLint is configured in `eslint.config.js` using the flat config format introduced in ESLint 9:
+
+```js
+import js from '@eslint/js'
+import globals from 'globals'
+import reactHooks from 'eslint-plugin-react-hooks'
+import reactRefresh from 'eslint-plugin-react-refresh'
+import { defineConfig, globalIgnores } from 'eslint/config'
+
+export default defineConfig([
+  globalIgnores(['dist']),
+  {
+    files: ['**/*.{js,jsx}'],
+    extends: [
+      js.configs.recommended,
+      reactHooks.configs.flat.recommended,
+      reactRefresh.configs.vite,
+    ],
+    languageOptions: {
+      ecmaVersion: 2020,
+      globals: globals.browser,
+      parserOptions: {
+        ecmaVersion: 'latest',
+        ecmaFeatures: { jsx: true },
+        sourceType: 'module',
+      },
+    },
+    rules: {
+      'no-unused-vars': ['error', { varsIgnorePattern: '^[A-Z_]' }],
+    },
+  },
+])
+```
+
+**What this enforces:**
+
+- **`js.configs.recommended`** — Standard ESLint rules for common JS errors.
+- **`reactHooks.configs.flat.recommended`** — Enforces the Rules of Hooks (e.g. no calling hooks inside conditions).
+- **`reactRefresh.configs.vite`** — Warns if a module exports something that would break Fast Refresh.
+- **`no-unused-vars`** — Errors on unused variables, but ignores identifiers that start with a capital letter or underscore (e.g. component names imported for JSX use).
+
+Run the linter with:
+
+```bash
+npm run lint
+```

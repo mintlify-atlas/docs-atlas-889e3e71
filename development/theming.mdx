@@ -1,0 +1,307 @@
+---
+title: "Theming and Styling"
+description: "CSS architecture, custom properties, colour palette, and responsive breakpoints."
+---
+
+## CSS Architecture
+
+The project uses a per-page CSS approach: each page component imports its own `.css` file. There is no CSS-in-JS or utility framework.
+
+| File | Scope |
+|------|-------|
+| `src/index.css` | Global variables, body reset, scrollbar |
+| `src/pages/Landing.css` | All landing page styles including parallax sections, info boxes, and ambient effects |
+| `src/pages/Stages.css` | Stages navigation tab layout and mobile overlay |
+| `src/pages/DetailPage.css` | Detail page stage, modal, and navigation |
+| `src/pages/Intro1.css` | First intro screen |
+| `src/pages/Intro2.css` | Second intro screen |
+| `src/components/SoundController.css` | Sound toggle button |
+
+## Global CSS Variables
+
+Design tokens are defined in `:root` inside `src/index.css`:
+
+```css
+:root {
+  --bg-gradient: linear-gradient(135deg, #0f172a 0%, #1e1b4b 50%, #312e81 100%);
+  --glass-bg: rgba(255, 255, 255, 0.1);
+  --glass-border: rgba(255, 255, 255, 0.2);
+  --glass-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.37);
+  --primary-glow: 0 0 20px rgba(99, 102, 241, 0.6);
+  --text-primary: #ffffff;
+  --text-secondary: #94a3b8;
+  --font-main: "Google Sans", system-ui, sans-serif;
+}
+```
+
+| Variable | Value | Usage |
+|----------|-------|-------|
+| `--bg-gradient` | Deep indigo gradient | Fallback page background |
+| `--glass-bg` | 10% white | Glassmorphism card backgrounds |
+| `--glass-border` | 20% white | Glassmorphism card borders |
+| `--glass-shadow` | Dark box shadow | Cards and modals |
+| `--primary-glow` | Indigo glow | Highlighted elements |
+| `--text-primary` | `#ffffff` | Main text colour |
+| `--text-secondary` | `#94a3b8` | Muted text |
+| `--font-main` | Google Sans | All body and heading text |
+
+The body background is set to `#040f2b` (Deep Ocean Blue) rather than the gradient variable, to fill any gaps between sections on the landing page during scroll:
+
+```css
+body {
+  background: #040f2b;
+  color: var(--text-primary);
+  font-family: var(--font-main);
+}
+```
+
+## Typography
+
+The project loads two typefaces:
+
+- **Google Sans** — A variable font loaded from local `src/assets/fonts/` files via `@font-face`. Used for all UI text via `--font-main`.
+- **Outfit** — Loaded from Google Fonts as a fallback and for Landing page headings.
+- **IBM Plex Sans Thai** — Loaded in `Landing.css` for Thai-language content in the info boxes.
+
+## Landing Page Background Gradient
+
+The landing page simulates the colour shift of descending through ocean water:
+
+```css
+.landing-page-v2 {
+  background: linear-gradient(
+    180deg,
+    #4fd1ed 0%,     /* Bright cyan at the surface */
+    #38bdf8 15%,
+    #0ea5e9 35%,
+    #1d4ed8 60%,    /* Deep blue mid-water */
+    #0c2461 80%,
+    #05081f 100%    /* Near-black at the seafloor */
+  );
+}
+```
+
+This gradient is the primary visual layer. The `UnderwaterEnvironment` component renders on top inside a `position: fixed` container, adding particle and glow effects without obscuring the gradient.
+
+## Polygon Art — The `.shard` Class
+
+Every polygon triangle across all animals uses the same `.shard` class. It provides the base sizing that percentage `clip-path` coordinates resolve against:
+
+```css
+/* Applied via inline styles in Landing.jsx / DetailPage.jsx */
+.shard {
+  width: 100%;
+  height: 100%;
+  position: absolute;
+  top: 0;
+  left: 0;
+}
+```
+
+The `.shard` class itself has no visual properties — colour and shape come entirely from inline `backgroundColor` and `clipPath` style props set per-shard in JSX. This keeps the CSS class reusable across all animals.
+
+On the Detail page, `.shard` gains a shimmer animation class once all shards have assembled:
+
+```jsx
+className={`shard ${shimmerReady ? "shimmer-ready" : ""}`}
+```
+
+## Glassmorphism Info Boxes
+
+Animal info boxes on the landing page use a dark glassmorphism treatment:
+
+```css
+.info-content-v2 {
+  background: rgba(2, 6, 23, 0.5);      /* Deep dark blue, semi-transparent */
+  backdrop-filter: blur(25px);
+  -webkit-backdrop-filter: blur(25px);
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  border-radius: 24px;
+  padding: 2.5rem;
+  box-shadow:
+    0 25px 50px -10px rgba(0, 0, 0, 0.6),
+    inset 0 1px 1px rgba(255, 255, 255, 0.1);
+}
+```
+
+For info boxes that appear in front of darker, busier areas (e.g. the turtle section and orca section), the `.opaque-v2` modifier is used instead:
+
+```css
+.info-content-v2.opaque-v2 {
+  background: #13144c;          /* Dark navy, fully opaque */
+  backdrop-filter: none;
+  -webkit-backdrop-filter: none;
+  border: 2px solid rgba(255, 255, 255, 0.3);
+}
+```
+
+Set this by passing `isOpaque={true}` to `AnimalInfoBox`.
+
+## Stages Background Classes
+
+Each stage tab on the Stages page references a unique background image via a CSS class:
+
+```css
+.bg-research {
+  background-image: url("../images/bg_research.webp");
+  background-size: cover;
+  background-position: center;
+}
+
+.bg-detail {
+  background-image: url("../images/bg_details.webp");
+  background-size: cover;
+  background-position: center;
+}
+
+.bg-danger {
+  background-image: url("../images/bg_danger.webp");
+  background-size: cover;
+  background-position: center;
+}
+
+.yPolygon {
+  background-image: url("../images/bg_yPolygon.webp");
+  background-size: cover;
+  background-position: center;
+}
+```
+
+These classes are set in `stagesData` inside `Stages.jsx`:
+
+```js
+const stagesData = [
+  { id: 1, title: "สำรวจท้องทะเล", bgClass: "bg-research", route: "/landing" },
+  { id: 2, title: "รายละเอียด",    bgClass: "bg-detail",   route: "/detail" },
+  { id: 3, title: "ภัยคุกคาม",    bgClass: "bg-danger" },
+  { id: 4, title: "ทำไมต้อง Polygon", bgClass: "yPolygon", route: "/polygon" },
+];
+```
+
+To add a new stage with a custom background image, add a `.webp` image to `src/images/`, create a matching CSS class in `Stages.css`, and reference it in the `bgClass` field.
+
+## Underwater Environment Styles
+
+The background environment uses three CSS classes defined in `Landing.css`:
+
+```css
+/* Triangle shard rising from the ocean floor */
+.bg-shard {
+  position: absolute;
+  clip-path: polygon(50% 0%, 0% 100%, 100% 100%);
+  filter: blur(1px);
+}
+
+/* Bioluminescent particle dot */
+.bio-particle {
+  position: absolute;
+  background: #ffffff;
+  border-radius: 50%;
+  filter: blur(2px);
+  box-shadow:
+    0 0 10px #ffffff,
+    0 0 20px #7dd3fc;
+}
+
+/* Surface light glow */
+.surface-glow {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 40vh;
+  background: radial-gradient(
+    circle at 50% -20%,
+    rgba(255, 255, 255, 0.4) 0%,
+    rgba(56, 189, 248, 0.2) 40%,
+    transparent 70%
+  );
+  pointer-events: none;
+  z-index: 2;
+}
+```
+
+Background shards use a colour palette from the `UnderwaterEnvironment` component:
+
+```js
+const colors = ["#ffffff", "#7dd3fc", "#38bdf8", "#0ea5e9", "#2dd4bf"];
+```
+
+These are shades of white, sky blue, cyan, and teal — all intentionally desaturated to remain subtle against the page gradient.
+
+## Changing Shard Colours
+
+Shard colours are defined inline in `animalConfig.js` as hex values on each shard object:
+
+```js
+{
+  clipPath: "polygon(...)",
+  color: "#C0CECE",   // ← change this
+  order: 7,
+  shard: 1,
+}
+```
+
+To re-colour an animal:
+1. Open `src/data/animalConfig.js`.
+2. Find the animal by its `id`.
+3. Update the `color` values on individual shards.
+
+There is no central colour palette for animal shards — each shard has its own independent colour, which is what creates the gradient-like low-poly facet effect.
+
+## Responsive Breakpoints
+
+The project uses three CSS media query breakpoints:
+
+| Breakpoint | Width | Behaviour |
+|------------|-------|-----------|
+| Tablet | `max-width: 1024px` | Animal sections reflow to vertical stack; info boxes become static |
+| Mobile | `max-width: 768px` | Font sizes reduce; Stages tabs switch to vertical layout; detail buttons shrink |
+| Small mobile | `max-width: 480px` | Further font size reductions |
+
+The critical mobile breakpoint at `768px` also changes the Stages page from horizontal tabs to a vertical list:
+
+```css
+@media (max-width: 768px) {
+  .stages-container {
+    flex-direction: column !important;
+    height: 100vh !important;
+    overflow: hidden !important;
+  }
+
+  .stage-tab {
+    flex: 1 !important;
+    height: auto !important;
+    width: 100% !important;
+  }
+}
+```
+
+The Landing page detects the mobile viewport in JavaScript to adjust the header fade-out scroll distance:
+
+```jsx
+const isMobileView =
+  typeof window !== "undefined" && window.innerWidth <= 768;
+
+const headerOpacity = useTransform(
+  smoothScrollY,
+  isMobileView ? [0, 400, 500] : [0, 1200, 1201],
+  [1, 1, 0],
+);
+```
+
+On mobile, the header fades out after only 400px of scroll (vs. 1200px on desktop), because sections are shorter and animals appear sooner.
+
+## Z-Index Scale
+
+The project uses an informal z-index scale:
+
+| Layer | Z-index | Description |
+|-------|---------|-------------|
+| Background particles | 0–2 | `landing-bg` fixed container |
+| Marine snow | 2 | Floating snow particles |
+| Scene overlays | 5–6 | Rock and coral SVG images |
+| Animal shards | 10 | Polygon art wrappers |
+| Info boxes | 50 | Animal information cards |
+| Back button | 100 | Navigation link |
+| Intro overlay | 10000 | Full-screen intro screens |

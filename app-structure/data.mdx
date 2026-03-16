@@ -1,0 +1,241 @@
+---
+title: 'Data architecture'
+description: 'How animal polygon data and conservation content are structured and linked.'
+keywords: ['data', 'animalConfig', 'animalDetails', 'shards', 'polygon', 'json']
+---
+
+The app has two data sources. `animalConfig.js` defines the polygon artwork for each animal. `animalDetails.json` holds the conservation content. Both are keyed by the same animal ID strings.
+
+---
+
+## `ANIMALS` — polygon shard data
+
+**File:** `src/data/animalConfig.js`
+
+The `ANIMALS` array is the primary data source for all polygon artwork in the app. Every component that renders an animal's polygon image reads from this array.
+
+```js src/data/animalConfig.js
+export const ANIMALS = [
+  {
+    id: "irrawaddyDolphin",
+    name: "IrrawaddyDolphin",
+    stageWidth: 1600,
+    stageHeight: 900,
+    shards: [
+      {
+        clipPath: "polygon(7.313% 48.222%, 7.688% 52.444%, 4.742% 54.000%, ...)",
+        color: "#C0CECE",
+        order: 7,
+        shard: 1,
+      },
+      // ...
+    ],
+  },
+  // 9 more animals
+];
+```
+
+### Animal object fields
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `id` | `string` | Unique identifier. Used as a URL query param (`/detail?id=<id>`) and as the key to look up entries in `animalDetails.json`. |
+| `name` | `string` | Display name (PascalCase, no spaces). Used in the Orderer page's top bar. |
+| `stageWidth` | `number` | The viewBox width the shard coordinates were authored at (pixels). |
+| `stageHeight` | `number` | The viewBox height the shard coordinates were authored at (pixels). |
+| `shards` | `Shard[]` | Array of polygon shard objects that together form the animal image. |
+
+### Shard object fields
+
+Each entry in the `shards` array defines one polygon triangle (or other shape):
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `clipPath` | `string` | A CSS `polygon()` value with percentage-based coordinates. Applied to an absolutely-positioned `div` that spans the full stage. |
+| `color` | `string` | Hex colour for this shard's `background-color`. |
+| `order` | `number` | Animation reveal order. Shards with lower `order` values appear first. Used by `DetailPage` and `PreviewStage` to sequence the assembly animation. |
+| `shard` | `number` | The shard's 1-based index within the array (informational; used during export from `OrdererPage`). |
+
+### Example shard
+
+```js
+{
+  clipPath: "polygon(7.875% 68.444%, 4.438% 68.444%, 5.813% 62.111%, 7.875% 68.444%, 7.875% 68.444%)",
+  color: "#798998",
+  order: 2,
+  shard: 2,
+}
+```
+
+### How shards render
+
+Each shard is rendered as a `<div>` positioned absolutely over the full stage area. The `clipPath` masks the div to a triangle, and `backgroundColor` fills it:
+
+```jsx src/pages/Landing.jsx
+{ANIMALS.find((a) => a.id === "irrawaddyDolphin")?.shards.map(
+  (shard, index) => (
+    <div
+      key={index}
+      className="shard"
+      style={{
+        clipPath: shard.clipPath,
+        backgroundColor: shard.color,
+        width: "100%",
+        height: "100%",
+        position: "absolute",
+        top: 0,
+        left: 0,
+      }}
+    />
+  ),
+)}
+```
+
+The stage container maintains the correct aspect ratio using a CSS custom property `--ratio` computed from `stageWidth / stageHeight`.
+
+### `order` and animation
+
+In `DetailPage`, shards are sorted by `order` to produce a normalised rank array. This rank drives the CSS transition delay so that shards assemble in sequence:
+
+```jsx src/pages/DetailPage.jsx
+const withIndex = animal.shards.map((shard, index) => ({
+  originalIndex: index,
+  order: typeof shard.order === "number" ? shard.order : index,
+}));
+withIndex.sort((a, b) => a.order - b.order);
+```
+
+Using normalised ranks (0…N-1) instead of raw `order` values means sparse or high-numbered orders still produce smooth, evenly spaced animations.
+
+---
+
+## `animalDetails.json` — conservation content
+
+**File:** `src/data/animalDetails.json`
+
+Holds all human-readable content: species names (English and Thai), and three conservation topic texts per animal. It is imported as a JSON module and accessed at runtime.
+
+### Top-level structure
+
+```json src/data/animalDetails.json
+{
+  "topics": {
+    "intro": "ทำความรู้จัก",
+    "threat": "ภัยคุกคาม",
+    "solution": "แนวทางการแก้ไข"
+  },
+  "animals": [
+    { "id": "turtle", ... },
+    { "id": "dugong", ... },
+    { "id": "orca", ... },
+    { "id": "dolphin", ... },
+    { "id": "blueWhale", ... },
+    { "id": "stingray", ... },
+    { "id": "sawfishes", ... },
+    { "id": "spermWhale", ... },
+    { "id": "irrawaddyDolphin", ... },
+    { "id": "ronin", ... }
+  ]
+}
+```
+
+### `topics` object
+
+`topics` maps each content key to its Thai UI label. The keys are derived at runtime via `Object.keys(ANIMAL_DETAILS.topics)`, so adding a new topic key here automatically adds a new tab in `DetailPage` without any code changes:
+
+```jsx src/pages/DetailPage.jsx
+const topicKeys = useMemo(() => Object.keys(ANIMAL_DETAILS.topics), []);
+```
+
+| Key | Thai label | Meaning |
+|-----|-----------|----------|
+| `intro` | ทำความรู้จัก | Introduction / species overview |
+| `threat` | ภัยคุกคาม | Threats facing the species |
+| `solution` | แนวทางการแก้ไข | Conservation solutions |
+
+### Animal detail object
+
+```json
+{
+  "id": "turtle",
+  "nameEN": "Leatherback Turtle",
+  "nameTH": "เต่ามะเฟือง",
+  "content": {
+    "intro": "เต่ามะเฟือง (Leatherback turtle) หรือชื่อวิทยาศาสตร์ Dermochelys coriacea...",
+    "threat": "ภัยคุกคามที่ทำให้เต่าทะเลรวมถึงเต่ามะเฟืองได้รับบาดเจ็บ...",
+    "solution": "การดำเนินการเพื่อป้องกันภัยคุกคาม..."
+  }
+}
+```
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `id` | `string` | Must match an `id` in the `ANIMALS` array exactly (case-insensitive comparison used at runtime). |
+| `nameEN` | `string` | English species name. Displayed in the detail page title and the info boxes on the landing page. |
+| `nameTH` | `string` | Thai species name. Displayed alongside the English name in the landing page info boxes. |
+| `content` | `object` | Keys must match the keys in `topics`. Values are long-form Thai text strings. |
+
+---
+
+## How the two sources link
+
+The `id` field is the join key between the two data sources. `DetailPage` and `Landing` both look up an animal's conservation content by matching against the ID from `ANIMALS`:
+
+```jsx src/pages/DetailPage.jsx
+const details = ANIMAL_DETAILS.animals.find(
+  (animalDetail) =>
+    animalDetail.id.toLowerCase() ===
+    (animal.id || animal.name).toLowerCase(),
+) || ANIMAL_DETAILS.animals[0]; // Fallback to first entry
+```
+
+```jsx src/pages/Landing.jsx
+const details = ANIMAL_DETAILS.animals.find((a) => a.id === animalId);
+```
+
+<Warning>
+ID matching in `DetailPage` is case-insensitive (`.toLowerCase()`), but in `Landing`'s `AnimalInfoBox` it is case-sensitive (strict equality). Keep IDs consistently cased in both files to avoid mismatches.
+</Warning>
+
+---
+
+## Complete animal ID reference
+
+The following IDs are valid in both `ANIMALS` (config) and `animalDetails.json` (content). Use them in the `?id=` query parameter to deep-link to a specific animal on the detail page:
+
+| ID | English name | Thai name |
+|----|-------------|----------|
+| `turtle` | Leatherback Turtle | เต่ามะเฟือง |
+| `dugong` | Dugong | พะยูน |
+| `orca` | Orca | วาฬเพชฌฆาต |
+| `dolphin` | Dolphin | โลมาชมพู |
+| `blueWhale` | Blue Whale | วาฬสีน้ำเงิน |
+| `stingray` | Giant Manta Ray | กระเบนราหูยักษ์ |
+| `sawfishes` | Sawfish | ปลาฉนากยักษ์ |
+| `spermWhale` | Sperm Whale | วาฬหัวทุย |
+| `irrawaddyDolphin` | Irrawaddy Dolphin | โลมาอิรวดี |
+| `ronin` | Ronin | ปลาโรนิน |
+
+<Tip>
+Deep-link example: `/detail?id=dugong` opens the detail page with the Dugong selected.
+</Tip>
+
+---
+
+## Adding a new animal
+
+To add an 11th animal to the project you need to update both data sources:
+
+<Steps>
+  <Step title="Add to animalConfig.js">
+    Append a new entry to the `ANIMALS` array with a unique `id`, correct `stageWidth`/`stageHeight`, and a populated `shards` array. Use the Orderer page (`/order`) to assign `order` values after creating the shards.
+  </Step>
+
+  <Step title="Add to animalDetails.json">
+    Add a matching entry to the `animals` array in `animalDetails.json`. The `id` must match the one in `ANIMALS`. Provide `nameEN`, `nameTH`, and a `content` object with keys for every entry in `topics` (`intro`, `threat`, `solution`).
+  </Step>
+
+  <Step title="Add a section to Landing.jsx">
+    Create a new `<section>` in `Landing.jsx` with a `ParallaxElement` wrapper and an `AnimalInfoBox` pointing to the new animal's ID.
+  </Step>
+</Steps>

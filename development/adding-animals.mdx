@@ -1,0 +1,233 @@
+---
+title: "Adding New Animals"
+description: "Step-by-step guide for adding a new animal to the Polygon Animals project."
+---
+
+This guide walks you through adding a new endangered Thai marine animal from scratch. You need to touch four files: `animalConfig.js`, `animalDetails.json`, `Landing.jsx`, and optionally `Landing.css` for positioning.
+
+<Steps>
+  <Step title="Generate polygon shards">
+    Each animal is composed of triangular shards defined using CSS `clip-path: polygon()` with percentage coordinates. Coordinates are relative to a virtual stage with dimensions you choose (typically `1600 × 900`).
+
+    A shard entry looks like this:
+
+    ```js
+    {
+      clipPath: "polygon(20.0% 40.0%, 15.0% 55.0%, 30.0% 50.0%, 20.0% 40.0%, 20.0% 40.0%)",
+      color: "#5B8FA8",
+      order: 1,
+      shard: 1,
+    }
+    ```
+
+    **Coordinate system:**
+    - `0% 0%` is the top-left corner of the stage.
+    - `100% 100%` is the bottom-right corner.
+    - The stage is always rendered at `aspect-ratio: stageWidth / stageHeight`, so percentages are always valid regardless of screen size.
+
+    **Practical approach:** Draw the animal outline in a vector editor (e.g. Figma or Inkscape) on a canvas sized `1600 × 900`. Triangulate the shape, then express each triangle vertex as a percentage of the canvas dimensions.
+
+    The `order` field controls which shards animate in first on the Detail page. Assign lower numbers to shards you want to appear first (e.g. the body core), and higher numbers to extremities.
+
+    <Tip>
+      The last two vertices in each `polygon()` repeat the first vertex. This is intentional — it ensures the polygon is explicitly closed and avoids rendering artefacts in some browsers.
+    </Tip>
+  </Step>
+
+  <Step title="Add the animal to animalConfig.js">
+    Open `src/data/animalConfig.js` and append a new entry to the `ANIMALS` array:
+
+    ```js
+    // src/data/animalConfig.js
+    export const ANIMALS = [
+      // ... existing animals ...
+      {
+        id: "myNewAnimal",          // camelCase, matches animalDetails.json id
+        name: "MyNewAnimal",        // PascalCase display name
+        stageWidth: 1600,           // virtual canvas width
+        stageHeight: 900,           // virtual canvas height
+        shards: [
+          {
+            clipPath: "polygon(20.0% 40.0%, 15.0% 55.0%, 30.0% 50.0%, 20.0% 40.0%, 20.0% 40.0%)",
+            color: "#5B8FA8",
+            order: 1,
+            shard: 1,
+          },
+          {
+            clipPath: "polygon(30.0% 50.0%, 15.0% 55.0%, 25.0% 65.0%, 30.0% 50.0%, 30.0% 50.0%)",
+            color: "#4A7A92",
+            order: 2,
+            shard: 2,
+          },
+          // ... more shards ...
+        ],
+      },
+    ];
+    ```
+
+    The `id` field must be **unique** and must match the `id` used in `animalDetails.json` and in all URL parameters.
+
+    <Warning>
+      The `DetailPage` uses `Array.findIndex` to locate animals by `id` (case-insensitive). Duplicate IDs will cause only the first match to be shown.
+    </Warning>
+  </Step>
+
+  <Step title="Add conservation content to animalDetails.json">
+    Open `src/data/animalDetails.json` and append a new entry to the `animals` array:
+
+    ```json
+    {
+      "id": "myNewAnimal",
+      "nameEN": "My New Animal",
+      "nameTH": "ชื่อภาษาไทย",
+      "content": {
+        "intro": "Description of the animal's biology, habitat, and characteristics...",
+        "threat": "Description of the threats this species faces...",
+        "solution": "Conservation measures, rescue procedures, and legal protections..."
+      }
+    }
+    ```
+
+    The `content` object keys (`intro`, `threat`, `solution`) correspond to the topics defined at the top of `animalDetails.json`:
+
+    ```json
+    {
+      "topics": {
+        "intro": "ทำความรู้จัก",
+        "threat": "ภัยคุกคาม",
+        "solution": "แนวทางการแก้ไข"
+      }
+    }
+    ```
+
+    The Detail page automatically renders a tab for each key in `topics`, so the number of tabs and their labels are controlled from this file.
+
+    <Note>
+      The `id` here must be lowercase-comparable to the `id` in `animalConfig.js`. The lookup uses `animalDetail.id.toLowerCase() === animal.id.toLowerCase()`, so casing differences are tolerated.
+    </Note>
+  </Step>
+
+  <Step title="Add a section to Landing.jsx">
+    Open `src/pages/Landing.jsx` and add a new `<section>` inside the `Landing` component return, following the same pattern as existing animals:
+
+    ```jsx
+    <section className="section-my-new-animal-v2">
+      <ParallaxElement
+        yRange={["40%", "0%", "-10%"]}
+        xRange={["30%", "0%", "10%"]}
+        scaleRange={[0.8, 1, 0.9]}
+        rotateRange={["-10deg", "0deg", "5deg"]}
+        style={{ width: "100%", display: "flex", justifyContent: "center" }}
+      >
+        <div className="my-new-animal-v2">
+          <div className="my-new-animal-wrapper-v2">
+            {ANIMALS.find((a) => a.id === "myNewAnimal")?.shards.map(
+              (shard, index) => (
+                <div
+                  key={index}
+                  className="shard"
+                  style={{
+                    clipPath: shard.clipPath,
+                    backgroundColor: shard.color,
+                    width: "100%",
+                    height: "100%",
+                    position: "absolute",
+                    top: 0,
+                    left: 0,
+                  }}
+                />
+              ),
+            )}
+          </div>
+        </div>
+      </ParallaxElement>
+      <AnimalInfoBox
+        animalId="myNewAnimal"
+        align="left"
+        className="my-new-animal-info-v2"
+      />
+    </section>
+    ```
+
+    Choose `align="left"` or `align="right"` for the info box. Alternate sides between consecutive animals to create a natural left-right rhythm down the page.
+
+    Then add the corresponding CSS to `Landing.css`:
+
+    ```css
+    .my-new-animal-v2 {
+      position: relative;
+      z-index: 10;
+      width: 50%;
+      left: 20%;
+      pointer-events: none;
+      animation: float-buoyant 9s ease-in-out infinite;
+    }
+
+    .my-new-animal-wrapper-v2 {
+      position: relative;
+      width: 100%;
+      aspect-ratio: 1600 / 900;
+    }
+    ```
+
+    The `aspect-ratio` value must match your animal's `stageWidth / stageHeight` from `animalConfig.js`.
+  </Step>
+
+  <Step title="Verify the detail page">
+    The Detail page reads from the `ANIMALS` array in order, so your new animal is automatically available for navigation with the Previous/Next arrows.
+
+    Open the detail page directly with the URL query parameter to test it in isolation:
+
+    ```
+    http://localhost:5173/detail?id=myNewAnimal
+    ```
+
+    The `DetailPage` reads the `id` param on mount:
+
+    ```jsx
+    useEffect(() => {
+      const animalId = searchParams.get("id");
+      if (animalId) {
+        const index = levels.findIndex(
+          (a) => a.id.toLowerCase() === animalId.toLowerCase(),
+        );
+        if (index !== -1) {
+          setCurrentIndex(index);
+        }
+      }
+    }, [searchParams, levels]);
+    ```
+
+    Check the following on the detail page:
+    - All shards assemble correctly with no obvious gaps.
+    - The `order` values produce a pleasing assembly animation (body fills in before extremities).
+    - The three info tabs (ทำความรู้จัก, ภัยคุกคาม, แนวทางการแก้ไข) show the correct content.
+    - The Previous/Next arrows navigate to the correct adjacent animals.
+  </Step>
+</Steps>
+
+## Checklist
+
+<CardGroup cols={2}>
+  <Card title="animalConfig.js" icon="code">
+    - Unique `id` in camelCase
+    - `stageWidth` and `stageHeight` set
+    - All shards have `clipPath`, `color`, `order`, and `shard` fields
+    - `order` values spread across a reasonable range
+  </Card>
+  <Card title="animalDetails.json" icon="file-json">
+    - `id` matches `animalConfig.js`
+    - `nameEN` and `nameTH` filled in
+    - `intro`, `threat`, and `solution` content written
+  </Card>
+  <Card title="Landing.jsx" icon="layout-panel-left">
+    - New `<section>` added in scroll order
+    - `ParallaxElement` with appropriate entry/exit ranges
+    - `AnimalInfoBox` with correct `animalId` and `align`
+  </Card>
+  <Card title="Landing.css" icon="paintbrush">
+    - Wrapper class with `aspect-ratio` matching stage dimensions
+    - Float animation assigned
+    - Width and offset tuned for visual balance
+  </Card>
+</CardGroup>

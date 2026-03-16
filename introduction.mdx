@@ -1,0 +1,78 @@
+---
+title: "Introduction"
+description: "An interactive educational web experience showcasing 10 endangered Thai marine animals through low-poly art, parallax scrolling animations, and conservation information."
+---
+
+## What is Polygon Animals?
+
+Polygon Animals is a React-based interactive web application that brings awareness to endangered marine species in Thai waters. It combines low-poly geometric art, immersive parallax scrolling, and 3D underwater environments to create a visually stunning educational experience.
+
+Each animal is rendered as a mosaic of colored polygon shards — when assembled, they form a recognizable silhouette. The visual metaphor is intentional: just as each polygon shard is essential to forming the complete image, each species is essential to maintaining ocean ecosystem balance.
+
+<CardGroup cols={2}>
+  <Card title="Quick Start" icon="rocket" href="/quickstart">
+    Get the project running locally in under 5 minutes
+  </Card>
+  <Card title="Marine Animals" icon="fish" href="/animals/overview">
+    Explore the 10 featured endangered species
+  </Card>
+  <Card title="Polygon Art System" icon="shapes" href="/development/polygon-art-system">
+    Understand how the low-poly art rendering works
+  </Card>
+  <Card title="Adding Animals" icon="plus" href="/development/adding-animals">
+    Learn how to add new species to the experience
+  </Card>
+</CardGroup>
+
+## Key features
+
+<CardGroup cols={2}>
+  <Card title="Low-poly art rendering" icon="triangle">
+    Animals are composed of hundreds of CSS `clip-path` polygon shards, each with carefully chosen colors to form realistic silhouettes.
+  </Card>
+  <Card title="Parallax scrolling" icon="layers">
+    Framer Motion powers smooth scroll-driven animations where animals swim into view with parallax depth effects.
+  </Card>
+  <Card title="3D underwater environment" icon="cube">
+    A Three.js scene rendered via `@react-three/fiber` creates an immersive underwater backdrop with dynamic lighting.
+  </Card>
+  <Card title="Conservation information" icon="leaf">
+    Each species has detailed Thai-language content covering introduction, threats, and conservation solutions.
+  </Card>
+  <Card title="Interactive detail page" icon="hand-pointer">
+    The detail page animates polygon shards assembling into animals, with tabbed content for each conservation topic.
+  </Card>
+  <Card title="Horizontal parallax scene" icon="arrow-right">
+    The Polygon page features a horizontal scroll journey with layered parallax backgrounds and animated characters.
+  </Card>
+</CardGroup>
+
+## Technology stack
+
+| Technology | Purpose |
+|-----------|---------|
+| React 19 | UI framework and component system |
+| Vite | Build tool and development server |
+| Framer Motion | Scroll-driven animations and transitions |
+| Three.js / @react-three/fiber | 3D underwater environment rendering |
+| @react-three/drei | Three.js helper components |
+| React Router DOM | Client-side routing between pages |
+| CSS clip-path | Polygon shard rendering system |
+
+## App routes
+
+The application uses React Router for navigation between five main views:
+
+| Route | Page | Description |
+|-------|------|-------------|
+| `/stages` | Stages | Entry point — four-panel stage selector with intro animation |
+| `/landing` | Landing | Scrolling underwater showcase of all marine animals |
+| `/detail?id=<animalId>` | Detail | Animated polygon assembly with conservation info tabs |
+| `/polygon` | Polygon | Horizontal parallax storytelling about low-poly art |
+| `/order` | Orderer | Animal ordering interface |
+
+## Conservation mission
+
+The project was created to raise awareness about marine biodiversity in Thailand. The featured species include animals listed as endangered or critically endangered under Thai wildlife protection laws and international conventions like CITES Appendix I.
+
+The use of polygon art carries a deeper message: if any single piece is missing, the whole image falls apart — just as the loss of any species disrupts the entire ecosystem.
