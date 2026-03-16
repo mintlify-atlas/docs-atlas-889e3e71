@@ -1,0 +1,89 @@
+{
+  "projectType": "frontend",
+  "projectName": "Polygon Animals",
+  "projectDescription": "An interactive educational web experience showcasing 10 endangered Thai marine animals through low-poly art, parallax scrolling animations, and conservation information.",
+  "theme": "palm",
+  "primaryColor": "#1A6B8A",
+  "lightColor": "#E0F4F9",
+  "darkColor": "#0D3B52",
+  "navigation": {
+    "tabs": [
+      {
+        "tab": "Overview",
+        "groups": [
+          {
+            "group": "Get Started",
+            "pages": ["introduction", "quickstart"]
+          },
+          {
+            "group": "App Structure",
+            "pages": ["app-structure/pages", "app-structure/components", "app-structure/data"]
+          }
+        ]
+      },
+      {
+        "tab": "Marine Animals",
+        "groups": [
+          {
+            "group": "Featured Species",
+            "pages": [
+              "animals/overview",
+              "animals/leatherback-turtle",
+              "animals/dugong",
+              "animals/irrawaddy-dolphin",
+              "animals/pink-dolphin",
+              "animals/orca",
+              "animals/blue-whale",
+              "animals/sperm-whale",
+              "animals/stingray"
+            ]
+          }
+        ]
+      },
+      {
+        "tab": "Development",
+        "groups": [
+          {
+            "group": "Technical Guide",
+            "pages": [
+              "development/setup",
+              "development/polygon-art-system",
+              "development/parallax-animations",
+              "development/3d-environment"
+            ]
+          },
+          {
+            "group": "Customization",
+            "pages": [
+              "development/adding-animals",
+              "development/theming"
+            ]
+          }
+        ]
+      }
+    ]
+  },
+  "keyFeatures": [
+    "Low-poly polygon shard art system for marine animal visualization",
+    "Parallax scrolling underwater experience with Framer Motion",
+    "3D underwater environment rendered with Three.js (@react-three/fiber)",
+    "Detailed conservation information for 10 endangered Thai marine species",
+    "Animated animal assembly/disassembly in the detail page",
+    "Interactive stage navigation with intro animations",
+    "Ambient underwater sound with background audio controller",
+    "Horizontal scroll parallax storytelling on the Polygon page",
+    "Responsive design supporting mobile and desktop",
+    "Depth indicator showing simulated ocean depth while scrolling"
+  ],
+  "publicApiSurface": [
+    "ANIMALS array in src/data/animalConfig.js — defines polygon shards for each animal",
+    "animalDetails.json in src/data/ — stores conservation content (intro, threat, solution) per animal",
+    "Pages: /stages, /landing, /detail?id=<animalId>, /order, /polygon",
+    "ParallaxElement component — scroll-driven parallax wrapper",
+    "AnimalInfoBox component — displays animal info overlaid on parallax sections",
+    "UnderwaterEnvironment component — Three.js 3D scene background",
+    "SoundController component — ambient audio toggle",
+    "PreviewStage component — animal preview in selection stages",
+    "AnimalCard component — card display for animal listing"
+  ]
+}
